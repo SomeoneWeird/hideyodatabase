@@ -1,0 +1,44 @@
+{
+	
+	"driver": "mongodb",
+
+	"driver_options": {
+
+		"port": 27017,
+		"host": "127.0.0.1",
+		"database": "hydb",
+		"output_database": "hydb2"
+
+	},
+
+	"schema": {
+
+		"users": {
+
+			"name": {
+				"type": "Name.firstName"
+			},
+			
+			"email": {
+				"type": "Internet.email"
+			},
+
+			"password": {
+				"type": "password",
+				"options": {
+					"hash": "md5"
+				}
+			},
+
+			"garbage": {
+				"type": "random",
+				"options": {
+					"length": 50
+				}
+			}
+
+		}
+
+	}
+
+}

@@ -1,0 +1,163 @@
+#!/usr/bin/env node
+
+var path = require('path');
+
+var async = require('async');
+var Faker = require('Faker');
+
+var Drivers = require(path.join(__dirname, "../drivers/"));
+var Helpers = require(path.join(__dirname, "../helpers/"));
+
+var argv = require('optimist')
+			.usage('Usage: hideyodatabase --config [config]')
+			.alias('c', 'config')
+			.describe('c', 'Path to config.json')
+			.demand([ 'c' ])
+			.argv;
+
+var config;
+
+try {
+	config = require(path.join(process.cwd(), argv.config));
+} catch(e) {
+	throw new Error("Could not parse config file.");
+}
+
+var driverName = config.driver;
+
+if(!Drivers[driverName]) {
+	throw new Error("Invalid driver specified.");
+}
+
+var driver = new Drivers[driverName](config.driver_options);
+
+driver.on('connected', function() {
+
+	driver.getTables(function(tables) {
+
+		if(config.skip_undefined) {
+
+			var defined = Object.keys(config.schema);
+
+			tables = tables.filter(function(table) {
+				return ~defined.indexOf(table);
+			});
+
+		}
+
+		async.eachLimit(tables, 2, function(table, doneTable) {
+
+			var insertRecord = driver.saveTable(table);
+
+			driver.processTable(table, processRow(table), function doneRow(newRow) {
+
+				insertRecord(newRow, doneTable);
+
+			});
+
+		}, function() {
+
+			console.log("Finished processing database.");
+
+			driver.close();
+
+		});
+
+	});
+
+});
+
+driver.on('error', function(err) {
+
+	// Just throw for now
+
+	if(err instanceof Error) {
+		throw err;
+	} else {
+		throw new Error(err);
+	}
+
+});
+
+function processRow(tableName) {
+
+
+	var rowSchema = config.schema[tableName];
+
+	if(!rowSchema) {
+		return function(row, done) {
+			done(row);
+		}
+	}
+
+	return function(row, doneRow) {
+
+		if(!rowSchema) {
+			return doneRow(row);
+		}
+
+		async.eachLimit(Object.keys(row), 5, function(key, done) {
+
+			var value = row[key];
+
+			if(rowSchema[key]) {
+
+				processKey(key, value, rowSchema[key], function(result) {
+
+					row[key] = result;
+					done();
+
+				});
+
+			} else {
+
+				done();
+
+			}
+
+		}, function() {
+ 
+ 			doneRow(row);
+
+		});
+
+	}
+
+}
+
+function processKey(key, value, keySchema, done) {
+
+	var processType = keySchema.type;
+	var processOptions = keySchema.options;
+
+	var r = Helpers[processType];
+
+	if(!r) {
+
+		r = ref(Faker, processType);
+
+		if(!r) {
+			throw new Error("Unknown processing type " + processType);
+		}
+
+		// it's 4am & there's a better way of doing this i just can't think of it at the moment
+		var p = processType.split('.');
+		p.pop();
+		p = p.join('.');
+
+		var parent = ref(Faker, p);
+
+		value = r.bind(parent)(); // ugh
+
+		return done(value);
+
+	}
+
+	r(processType, processOptions, done);
+
+}
+
+// http://stackoverflow.com/a/10934946
+function ref(obj, str) {
+    return str.split(".").reduce(function(o, x) { return o[x] }, obj);
+}
