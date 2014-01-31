@@ -81,10 +81,19 @@ driver.on('error', function(err) {
 
 function processRow(tableName) {
 
+	var schemas = [];
 
-	var rowSchema = config.schema[tableName];
+	for(var table in config.schema) {
 
-	if(!rowSchema) {
+		if((new RegExp(table)).test(tableName)) {
+
+			schemas.push(config.schema[table]);
+
+		}
+
+	}
+
+	if(!schemas.length) {
 		return function(row, done) {
 			done(row);
 		}
@@ -92,28 +101,28 @@ function processRow(tableName) {
 
 	return function(row, doneRow) {
 
-		if(!rowSchema) {
-			return doneRow(row);
-		}
-
 		async.eachLimit(Object.keys(row), 5, function(key, done) {
 
 			var value = row[key];
 
-			if(rowSchema[key]) {
+			async.each(schemas, function(schema, doneSchema) {
 
-				processKey(key, value, rowSchema[key], function(result) {
+				if(schema[key]) {
 
-					row[key] = result;
-					done();
+					processKey(key, value, schema[key], function(result) {
 
-				});
+						row[key] = result;
+						doneSchema();
 
-			} else {
+					});
 
-				done();
+				} else {
 
-			}
+					doneSchema();
+
+				}
+
+			}, done);
 
 		}, function() {
  
