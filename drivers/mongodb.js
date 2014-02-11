@@ -98,8 +98,14 @@ MongoDriver.prototype.saveTable = function(collectionName) {
 
 	return function saveRow(row, done) {
 
+		if(!row) {
+			return done();
+		}
+
 		var oldId = row._id;
 		delete row._id;
+
+		console.log("Saving row", oldId);
 
 		collection.update({
 			_id: oldId,
@@ -111,6 +117,8 @@ MongoDriver.prototype.saveTable = function(collectionName) {
 			if(err) {
 				return self.emit('error', err);
 			}
+
+			console.log("Done row", oldId);
 
 			done();
 

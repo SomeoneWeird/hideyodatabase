@@ -48,12 +48,17 @@ driver.on('connected', function() {
 		async.eachLimit(tables, 2, function(table, doneTable) {
 
 			var insertRecord = driver.saveTable(table);
+			var doProcessRow = processRow(table);
 
-			driver.processTable(table, processRow(table), function doneRow(newRow) {
+			driver.processTable(table, function(row, doneRow) {
 
-				insertRecord(newRow, doneTable);
+				doProcessRow(row, function(newRow) {
 
-			});
+					insertRecord(newRow, doneRow);
+
+				});
+
+			}, doneTable);
 
 		}, function() {
 
