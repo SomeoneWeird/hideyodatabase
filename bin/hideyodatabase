@@ -35,16 +35,6 @@ driver.on('connected', function() {
 
 	driver.getTables(function(tables) {
 
-		if(config.skip_undefined) {
-
-			var defined = Object.keys(config.schema);
-
-			tables = tables.filter(function(table) {
-				return ~defined.indexOf(table);
-			});
-
-		}
-
 		async.eachLimit(tables, 2, function(table, doneTable) {
 
 			var insertRecord = driver.saveTable(table);
@@ -58,7 +48,12 @@ driver.on('connected', function() {
 
 				});
 
-			}, doneTable);
+			}, function() {
+
+				console.log("Finished processing table", table);
+				doneTable();
+
+			});
 
 		}, function() {
 
