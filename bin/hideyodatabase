@@ -90,7 +90,7 @@ function processRow(tableName) {
 
 	for(var table in config.schema) {
 
-		if((new RegExp(table)).test(tableName)) {
+		if(tableName == table || (new RegExp(table)).test(tableName)) {
 
 			schemas.push(config.schema[table]);
 
